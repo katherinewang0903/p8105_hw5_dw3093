@@ -7,6 +7,7 @@ output: github_document
 ```{r include = FALSE, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(rvest)
+library(broom)
 set.seed(1)
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -26,34 +27,74 @@ scale_fill_discrete = scale_fill_viridis_d
 
 #Question 1
 ```{r}
-shared_birthday <- function(n) {
-  birthdays <- sample(1:365, n, replace = TRUE) 
-  return(any(duplicated(birthdays)))
+shared_bday <- function(n) {
+  bday <- sample(1:365, size = n, replace = TRUE) 
+  return(any(duplicated(bday)))
 }
-
 group_sizes <- 2:50
-num_simulations <- 10000
+n_simulation <- 10000
 
-probabilities <- numeric(length(group_sizes))
-
+prob <- numeric(length(group_sizes))
 for (i in seq_along(group_sizes)) {
   group_size <- group_sizes[i]
 
-  results <- replicate(num_simulations, shared_birthday(group_size))
-  probabilities[i] <- mean(results)
+  results <- replicate(n_simulation, shared_bday(group_size))
+  prob[i] <- mean(results)
 }
-results_df <- data.frame(
+results <- data.frame(
   group_size = group_sizes,
-  probability = probabilities
+  probability = prob
 )
-ggplot(results_df, aes(x = group_size, y = probability)) +
+
+ggplot(results, aes(x = group_size, y = probability)) +
   geom_line() +
-  geom_point() +
+  geom_point(alpha=.6) +
   labs(
     title = "Probability of Shared Birthday as a Function of Group Size",
-    x = "Group Size",
+    x = "Group Size (n)",
     y = "Probability of Shared Birthday"
-  ) 
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+```
+We can conclude that the probability of a shared birthday is low with small group sizes. However, as the group size increases, the probability rises sharply, reaching over 50% by around 23 people and approaching near certainty by 50 people. 
+
+
+#Question 2
+Set up parameters as question required
+```{r}
+n <- 30
+sigma <- 5
+alpha <- 0.05
+mu_values <- 0:6
+n_simulations <- 5000
 ```
 
+Function to simulate data
+```{r}
+t_test <- function(mu) {
+  x <- rnorm(n = n, mean = mu, sd = sigma)
+  t_stats <- t.test(x, mu = 0) |>
+    broom::tidy() |>
+    select(estimate, p.value) 
+  return(t_stats)
+}
+```
+
+Generate simulation results for each mu value
+```{r}
+simulation_results <- tibble(
+  mu = rep(mu_values, each = n_simulations),
+  iter = rep(1:n_simulations, times = length(mu_values))
+) |>
+  mutate(
+    t_test_output = map(mu, t_test)
+  ) |>
+  unnest(cols = t_test_output)
+```
+
+```{r}
+
+```
 
