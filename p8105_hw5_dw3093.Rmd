@@ -9,14 +9,15 @@ library(tidyverse)
 library(rvest)
 library(broom)
 set.seed(1)
+
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
-  fig.width = 6,
-  fig.asp = .6,
+  fig.width = 8,
+  fig.height = 6,
   out.width = "90%"
   )
-theme_set(theme_minimal() + theme(legend.position = "bottom"))
+theme_set(theme_minimal())
 options(
   ggplot2.continuous.colour = "viridis",
   ggplot2.continuous.fill = "viridis"
@@ -61,8 +62,8 @@ ggplot(results, aes(x = group_size, y = probability)) +
 We can conclude that the probability of a shared birthday is low with small group sizes. However, as the group size increases, the probability rises sharply, reaching over 50% by around 23 people and approaching near certainty by 50 people. 
 
 
-#Question 2
-Set up parameters as question required
+# Question 2
+# Set up parameters as question required
 ```{r}
 n <- 30
 sigma <- 5
@@ -71,27 +72,81 @@ mu_values <- 0:6
 n_simulations <- 5000
 ```
 
-Function to simulate data
+# Function to simulate data
 ```{r}
 t_test <- function(mu) {
-  x <- rnorm(n = n, mean = mu, sd = sigma)
-  t_stats <- t.test(x, mu = 0) |>
+  sample_data <- rnorm(n = n, mean = mu, sd = sigma)
+  t_stats <- t.test(sample_data, mu = 0) |>
     broom::tidy() |>
-    select(estimate, p.value) 
+    select(estimate, p.value)
   return(t_stats)
 }
 ```
 
-Generate simulation results for each mu value
+# Generate simulation results for each mu value
 ```{r}
 simulation_results <- tibble(
-  mu = rep(mu_values, each = n_simulations),
-  iter = rep(1:n_simulations, times = length(mu_values))
+  mu = rep(mu_values, each = n_simulations)
 ) |>
   mutate(
     t_test_output = map(mu, t_test)
   ) |>
   unnest(cols = t_test_output)
+```
+
+# Calculate power and average estimates
+```{r}
+summary_results <- simulation_results |>
+  group_by(mu) |>
+  summarize(
+    power = mean(p.value < alpha),
+    avg_est_all = mean(estimate),
+    avg_est_rej = mean(estimate[p.value < alpha], na.rm = TRUE),
+    .groups = 'drop'
+  )
+```
+
+# Plot 1: Power vs. True Value of μ
+```{r}
+ggplot(summary_results, aes(x = mu, y = power)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Power of the t-test vs. True Value of μ",
+    x = "True Value of μ",
+    y = "Power (Proportion of Null Rejections)"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold")
+)
+```
+
+# Plot 2: Average Estimate vs. True Mean (mu)
+```{r}
+ggplot(summary_results, aes(x = mu)) +
+  geom_line(aes(y = avg_est_all, color = "All Samples")) +
+  geom_point(aes(y = avg_est_all, color = "All Samples")) +
+  geom_line(aes(y = avg_est_rej, color = "Null Rejected Samples")) +
+  geom_point(aes(y = avg_est_rej, color = "Null Rejected Samples")) +
+  labs(
+    title = "Average Estimate of Sample Mean (μ̂) vs. True Mean (μ)",
+    x = "True Mean (μ)",
+    y = "Average Estimate of Sample Mean (μ̂)",
+    color = "Sample Type"
+  ) +
+  scale_color_manual(
+    values = c("All Samples" = "orange", "Null Rejected Samples" = "pink"),
+    labels = c("All Samples", "Null Rejected Samples")
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold")
+)
+```
+# Question 3
+#Load dataset from github
+```{r}
+homicide = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/refs/heads/master/homicide-data.csv")
+head(homicide)
 ```
 
 ```{r}
