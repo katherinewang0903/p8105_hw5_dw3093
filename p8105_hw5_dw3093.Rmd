@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
   fig.height = 6,
   out.width = "90%"
   )
-theme_set(theme_minimal())
+theme_set(theme_minimal()+ theme(legend.position = "bottom"))
 options(
   ggplot2.continuous.colour = "viridis",
   ggplot2.continuous.fill = "viridis"
@@ -146,10 +146,78 @@ ggplot(summary_results, aes(x = mu)) +
 #Load dataset from github
 ```{r}
 homicide = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/refs/heads/master/homicide-data.csv")
-head(homicide)
+summary(homicide)
+```
+This dataset contains `r nrow(homicide)` records on homicide incidents, each with `r ncol(homicide)` columns. 
+Each entry includes a unique identifier (uid), report date (reported_date), and victim details such as last name (victim_last), first name (victim_first), race (victim_race), age (victim_age), and sex (victim_sex). Location is specified by city, state, and geographic coordinates (lat and lon). The (disposition) shows the case outcome.
+
+# Create city_state variable and summarize
+```{r}
+homicide_sum <- homicide %>%
+  mutate(city_state = paste(city, state, sep = ", ")) %>%
+  group_by(city_state) %>%
+  summarize(
+    total_homicides = n(),
+    unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest")),
+    .groups = 'drop'
+  ) %>% 
+  filter(city_state!="Tulsa, AL")
+
+knitr::kable(homicide_sum)
 ```
 
 ```{r}
+baltimore_data <- homicide_sum %>%
+  filter(city_state == "Baltimore, MD")
 
+baltimore_test <- prop.test(
+  x = baltimore_data$unsolved_homicides,
+  n = baltimore_data$total_homicides
+) %>%
+  broom::tidy()
+
+baltimore_result <- baltimore_test %>% 
+  select(estimate, conf.low, conf.high) %>%
+  mutate(city_state = "Baltimore, MD")
+
+knitr::kable(baltimore_result, 
+             col.names = c("Estimate", "Lower CI", "Upper CI", "City, State"))
+```
+```{r}
+unsolved_p <- function(unsolved, total){
+  prop_test_result <- prop.test(unsolved, total)
+  broom::tidy(prop_test_result) %>% 
+    select(estimate, conf.low, conf.high)
+}
+homicide_sum <- homicide_sum %>% 
+  mutate(
+    prop_results = purrr::map2(unsolved_homicides, 
+                               total_homicides, 
+                               ~unsolved_p(.x, .y)
+                               )
+  ) %>%
+  unnest(prop_results)
+
+knitr::kable(homicide_sum)
+```
+
+```{r}
+homicide_sum |>
+mutate(
+    city_state = reorder(city_state, estimate)
+  )|>
+ggplot(aes(x = city_state, y = estimate)) +
+  geom_point(color = "pink") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  labs(
+    title = "Proportion of Unsolved Homicides by City",
+    x = "City, State",
+    y = "Proportion of Unsolved Homicides"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
 ```
 
