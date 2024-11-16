@@ -106,7 +106,7 @@ summary_results <- simulation_results |>
   )
 ```
 
-# Plot 1: Power vs. True Value of μ
+# Plot 1: Power of the t-test vs. True Value of μ
 ```{r}
 ggplot(summary_results, aes(x = mu, y = power)) +
   geom_line() +
@@ -120,6 +120,7 @@ ggplot(summary_results, aes(x = mu, y = power)) +
     plot.title = element_text(hjust = 0.5, face = "bold")
 )
 ```
+This plot shows how the true value of μ influences the power of the t-test. As the true mean μ increases, the power of the test rises correspondingly. This trend reflects a greater likelihood of rejecting the null hypothesis as the effect size grows, suggesting that the test becomes more effective at detecting a true difference from 0 when μ is larger. Consequently, higher values of μ yield a higher probability of rejecting the null hypothesis rises
 
 # Plot 2: Average Estimate vs. True Mean (mu)
 ```{r}
@@ -142,14 +143,22 @@ ggplot(summary_results, aes(x = mu)) +
     plot.title = element_text(hjust = 0.5, face = "bold")
 )
 ```
+This plot shows the average estimate of μ^ for all samples (orange) and for only those samples where the null was rejected (pink), across different values of the true mean μ.
+
+No, the sample average of μ^ across tests where the null hypothesis is rejected is not approximately equal to the true value of μ, especially for smaller values of μ. 
+
+This discrepancy arises due to selection bias. When we focus only on tests that reject the null hypothesis, we tend to include samples with larger-than-average estimates of μ^, as these are more likely to yield significant p-values. Consequently, the observed average in this subset is inflated. However, as the true value of μ becomes larger, this bias diminishes because the true effect is strong enough that a broader range of sample estimates lead to significance, resulting in an average estimate closer to the true value of μ.
+
 # Question 3
-#Load dataset from github
+# Load dataset from github
 ```{r}
 homicide = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/refs/heads/master/homicide-data.csv")
 summary(homicide)
 ```
 This dataset contains `r nrow(homicide)` records on homicide incidents, each with `r ncol(homicide)` columns. 
-Each entry includes a unique identifier (uid), report date (reported_date), and victim details such as last name (victim_last), first name (victim_first), race (victim_race), age (victim_age), and sex (victim_sex). Location is specified by city, state, and geographic coordinates (lat and lon). The (disposition) shows the case outcome.
+Each entry includes a unique identifier (uid), report date (reported_date), and victim details such as last name (victim_last), first name (victim_first), race (victim_race), age (victim_age), and sex (victim_sex). Location is specified by city, state, and geographic coordinates (lat and lon). The (disposition) shows the case outcome. 
+
+I found there is a repeated entry of Tulsa, AL, and Tulsa, OK, it seems a data entry error, by Google the city of Tulsa, I noticed that Tulsa, AL is wrong. So, will conduct further data cleaning. 
 
 # Create city_state variable and summarize
 ```{r}
@@ -165,6 +174,7 @@ homicide_sum <- homicide %>%
 
 knitr::kable(homicide_sum)
 ```
+Here, the city_state variable is created to combine city and state names, and then a summary of total and unsolved homicides is generated for each city. The city "Tulsa, AL" is filtered out bef$ore displaying the table.
 
 ```{r}
 baltimore_data <- homicide_sum %>%
@@ -183,8 +193,10 @@ baltimore_result <- baltimore_test %>%
 knitr::kable(baltimore_result, 
              col.names = c("Estimate", "Lower CI", "Upper CI", "City, State"))
 ```
+I filtered the dataset for "Baltimore, MD" and use prop.test to estimate the proportion of homicides that remain unsolved. The output from prop.test is processed with broom::tidy() to extract the estimated proportion and confidence interval. This table shows that approximately 64.6% of homicides in Baltimore, MD, remain unsolved, with a 95% confidence interval of 62.8% to 66.3%.
+
 ```{r}
-unsolved_p <- function(unsolved, total){
+unsolved_prop <- function(unsolved, total){
   prop_test_result <- prop.test(unsolved, total)
   broom::tidy(prop_test_result) %>% 
     select(estimate, conf.low, conf.high)
@@ -193,7 +205,7 @@ homicide_sum <- homicide_sum %>%
   mutate(
     prop_results = purrr::map2(unsolved_homicides, 
                                total_homicides, 
-                               ~unsolved_p(.x, .y)
+                               ~unsolved_prop(.x, .y)
                                )
   ) %>%
   unnest(prop_results)
@@ -220,4 +232,4 @@ ggplot(aes(x = city_state, y = estimate)) +
     plot.title = element_text(hjust = 0.5, face = "bold")
   )
 ```
-
+This plot displays the estimated proportions of unsolved homicides for each city, with error bars representing the 95% CI. Cities are organized in ascending order of unsolved homicide proportions, ranging from around 30% in Richmond, VA, to around 75% in New Orleans, LA. 
