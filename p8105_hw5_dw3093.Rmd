@@ -122,7 +122,7 @@ ggplot(summary_results, aes(x = mu, y = power)) +
 ```
 This plot shows how the true value of μ influences the power of the t-test. As the true mean μ increases, the power of the test rises correspondingly. This trend reflects a greater likelihood of rejecting the null hypothesis as the effect size grows, suggesting that the test becomes more effective at detecting a true difference from 0 when μ is larger. Consequently, higher values of μ yield a higher probability of rejecting the null hypothesis rises
 
-# Plot 2: Average Estimate vs. True Mean (mu)
+# Plot 2: Average Estimate vs. True Mean (μ)
 ```{r}
 ggplot(summary_results, aes(x = mu)) +
   geom_line(aes(y = avg_est_all, color = "All Samples")) +
@@ -165,7 +165,7 @@ I found there is a repeated entry of Tulsa, AL, and Tulsa, OK, it seems a data e
 homicide_sum <- homicide %>%
   mutate(city_state = paste(city, state, sep = ", ")) %>%
   group_by(city_state) %>%
-  summarize(
+  summarise(
     total_homicides = n(),
     unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest")),
     .groups = 'drop'
